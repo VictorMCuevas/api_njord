@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 class CondicionAtmosfericaController extends Controller
 {
     /**
+     * 
      * Devuelve todas las condiciones con sus rutas asociadas.
      */
     public function index(): JsonResponse
