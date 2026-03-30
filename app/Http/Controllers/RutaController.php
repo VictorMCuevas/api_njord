@@ -21,7 +21,7 @@ class RutaController extends Controller
 
             return response()->json([
                 'estado' => 'exito',
-                'mensaje' => 'Rutas obtenidas exitosamente',
+                'mensaje' => 'Rutas obtenidas',
                 'datos' => $rutas,
                 'cantidad' => count($rutas),
             ], 200);
