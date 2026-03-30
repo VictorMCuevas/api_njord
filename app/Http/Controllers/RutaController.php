@@ -4,91 +4,202 @@ namespace App\Http\Controllers;
 
 use App\Models\Ruta;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
-// use Symfony\Component\HttpFoundation\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 class RutaController extends Controller
 {
     /**
-     * Display a listing of the resource.
+     * Obtener todas las rutas del usuario autenticado.
+     * GET /api/rutas
      */
-    // public function index()
-    // {
-    //     return Ruta::all();
-    // }
-
-    /**
-     * Devuelve todas las rutas con sus relaciones.
-     */
-    public function index(): JsonResponse
+    public function index(Request $solicitud)
     {
-        $rutas = Ruta::with(['condicionAtmosferica', 'user'])->get();
-        return response()->json($rutas);
+        try {
+            $rutas = Ruta::where('usuario_id', $solicitud->user()->id)
+                ->with(['valoraciones', 'condicionesAtmosfericas'])
+                ->get();
+
+            return response()->json([
+                'estado' => 'exito',
+                'mensaje' => 'Rutas obtenidas exitosamente',
+                'datos' => $rutas,
+                'cantidad' => count($rutas),
+            ], 200);
+
+        } catch (\Exception $excepcion) {
+            return response()->json([
+                'estado' => 'error',
+                'mensaje' => 'No se pudieron obtener las rutas',
+                'error' => $excepcion->getMessage(),
+            ], 500);
+        }
     }
 
     /**
-     * Crea una nueva ruta tras validar los datos.
+     * Crear una nueva ruta.
+     * POST /api/rutas
      */
-    public function store(Request $request): JsonResponse
+    public function store(Request $solicitud)
     {
-        $validated = $request->validate([
-            'id_user'                  => 'required|exists:users,id',
-            'path'                     => 'required|string|max:200|unique:rutas,path',
-            'descripcion'              => 'required|string',
-            'provincia_inicio'         => 'required|string|max:50',
-            'provincia_fin'            => 'required|string|max:50',
-            'temperatura'              => 'required|integer',
-            'id_condicion_atmosferica' => 'required|exists:condiciones_atmosfericas,id',
-            'puntuacion'               => 'required|integer|min:1|max:5',
-        ]);
+        try {
+            // Validar datos de entrada
+            $validado = $solicitud->validate([
+                'nombre' => 'required|string|max:255',
+                'descripcion' => 'nullable|string',
+                'tipo_moto' => 'nullable|string|max:100',
+                'estilo_conduccion' => 'nullable|string|max:100',
+                'latitud' => 'nullable|numeric|between:-90,90',
+                'longitud' => 'nullable|numeric|between:-180,180',
+                'distancia_km' => 'nullable|numeric|min:0',
+                'nivel_dificultad' => 'nullable|integer|between:1,5',
+            ]);
 
-        $ruta = Ruta::create($validated);
+            // Crear ruta asociada al usuario autenticado
+            $ruta = Ruta::create([
+                'usuario_id' => $solicitud->user()->id,
+                'nombre' => $validado['nombre'],
+                'descripcion' => $validado['descripcion'] ?? null,
+                'tipo_moto' => $validado['tipo_moto'] ?? null,
+                'estilo_conduccion' => $validado['estilo_conduccion'] ?? null,
+                'latitud' => $validado['latitud'] ?? null,
+                'longitud' => $validado['longitud'] ?? null,
+                'distancia_km' => $validado['distancia_km'] ?? null,
+                'nivel_dificultad' => $validado['nivel_dificultad'] ?? 1,
+            ]);
 
-        // Cargamos las relaciones para devolverlas en la respuesta
-        $ruta->load(['condicionAtmosferica', 'user']);
+            return response()->json([
+                'estado' => 'exito',
+                'mensaje' => 'Ruta creada exitosamente. Sube el archivo GPX usando POST /api/rutas/{id}/subir-gpx',
+                'datos' => $ruta,
+            ], 201);
 
-        return response()->json($ruta, 201);
-    }
-
-
-    /**
-     * Devuelve una ruta concreta con sus relaciones.
-     */
-    public function show(Ruta $ruta): JsonResponse
-    {
-        $ruta->load(['condicionAtmosferica', 'user']);
-        return response()->json($ruta);
-    }
-
-    /**
-     * Actualiza una ruta existente.
-     * Usamos 'sometimes' para permitir actualizaciones parciales (PATCH).
-     */
-    public function update(Request $request, Ruta $ruta): JsonResponse
-    {
-        $validated = $request->validate([
-            'id_user'                  => 'sometimes|exists:users,id',
-            'path'                     => 'sometimes|string|max:200|unique:rutas,path,' . $ruta->id,
-            'descripcion'              => 'sometimes|string',
-            'provincia_inicio'         => 'sometimes|string|max:50',
-            'provincia_fin'            => 'sometimes|string|max:50',
-            'temperatura'              => 'sometimes|integer',
-            'id_condicion_atmosferica' => 'sometimes|exists:condiciones_atmosfericas,id',
-            'puntuacion'               => 'sometimes|integer|min:1|max:5',
-        ]);
-
-        $ruta->update($validated);
-        $ruta->load(['condicionAtmosferica', 'user']);
-
-        return response()->json($ruta);
+        } catch (ValidationException $excepcion) {
+            return response()->json([
+                'estado' => 'error',
+                'mensaje' => 'Validación fallida',
+                'errores' => $excepcion->errors(),
+            ], 422);
+        } catch (\Exception $excepcion) {
+            return response()->json([
+                'estado' => 'error',
+                'mensaje' => 'No se pudo crear la ruta',
+                'error' => $excepcion->getMessage(),
+            ], 500);
+        }
     }
 
     /**
-     * Elimina una ruta.
+     * Obtener una ruta específica.
+     * GET /api/rutas/{id}
      */
-    public function destroy(Ruta $ruta): JsonResponse
+    public function show(Request $solicitud, Ruta $ruta)
     {
-        $ruta->delete();
-        return response()->json(['message' => 'Ruta eliminada correctamente'], 200);
+        try {
+            // Verificar autorización
+            if ($ruta->usuario_id !== $solicitud->user()->id) {
+                return response()->json([
+                    'estado' => 'error',
+                    'mensaje' => 'No autorizado: Esta ruta no te pertenece',
+                ], 403);
+            }
+
+            // Cargar relaciones
+            $ruta->load(['valoraciones', 'condicionesAtmosfericas']);
+
+            return response()->json([
+                'estado' => 'exito',
+                'datos' => $ruta,
+            ], 200);
+
+        } catch (\Exception $excepcion) {
+            return response()->json([
+                'estado' => 'error',
+                'mensaje' => 'No se pudo obtener la ruta',
+                'error' => $excepcion->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Actualizar una ruta.
+     * PUT /api/rutas/{id}
+     */
+    public function update(Request $solicitud, Ruta $ruta)
+    {
+        try {
+            // Verificar autorización
+            if ($ruta->usuario_id !== $solicitud->user()->id) {
+                return response()->json([
+                    'estado' => 'error',
+                    'mensaje' => 'No autorizado: Esta ruta no te pertenece',
+                ], 403);
+            }
+
+            // Validar datos
+            $validado = $solicitud->validate([
+                'nombre' => 'sometimes|string|max:255',
+                'descripcion' => 'sometimes|nullable|string',
+                'tipo_moto' => 'sometimes|nullable|string|max:100',
+                'estilo_conduccion' => 'sometimes|nullable|string|max:100',
+                'latitud' => 'sometimes|nullable|numeric|between:-90,90',
+                'longitud' => 'sometimes|nullable|numeric|between:-180,180',
+                'distancia_km' => 'sometimes|nullable|numeric|min:0',
+                'nivel_dificultad' => 'sometimes|nullable|integer|between:1,5',
+            ]);
+
+            // Actualizar ruta
+            $ruta->update($validado);
+
+            return response()->json([
+                'estado' => 'exito',
+                'mensaje' => 'Ruta actualizada exitosamente',
+                'datos' => $ruta,
+            ], 200);
+
+        } catch (ValidationException $excepcion) {
+            return response()->json([
+                'estado' => 'error',
+                'mensaje' => 'Validación fallida',
+                'errores' => $excepcion->errors(),
+            ], 422);
+        } catch (\Exception $excepcion) {
+            return response()->json([
+                'estado' => 'error',
+                'mensaje' => 'No se pudo actualizar la ruta',
+                'error' => $excepcion->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Eliminar una ruta.
+     * DELETE /api/rutas/{id}
+     */
+    public function destroy(Request $solicitud, Ruta $ruta)
+    {
+        try {
+            // Verificar autorización
+            if ($ruta->usuario_id !== $solicitud->user()->id) {
+                return response()->json([
+                    'estado' => 'error',
+                    'mensaje' => 'No autorizado: Esta ruta no te pertenece',
+                ], 403);
+            }
+
+            // Eliminar archivo GPX asociado (automático via hook)
+            $ruta->delete();
+
+            return response()->json([
+                'estado' => 'exito',
+                'mensaje' => 'Ruta eliminada exitosamente',
+            ], 200);
+
+        } catch (\Exception $excepcion) {
+            return response()->json([
+                'estado' => 'error',
+                'mensaje' => 'No se pudo eliminar la ruta',
+                'error' => $excepcion->getMessage(),
+            ], 500);
+        }
     }
 }
