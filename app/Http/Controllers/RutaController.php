@@ -15,7 +15,7 @@ class RutaController extends Controller
     public function index(Request $solicitud)
     {
         try {
-            $rutas = Ruta::where('usuario_id', $solicitud->user()->id)
+            $rutas = Ruta::where('user_id', $solicitud->user()->id)
                 ->with(['valoraciones', 'condicionesAtmosfericas'])
                 ->get();
 
@@ -56,7 +56,7 @@ class RutaController extends Controller
 
             // Crear ruta asociada al usuario autenticado
             $ruta = Ruta::create([
-                'usuario_id' => $solicitud->user()->id,
+                'user_id' => $solicitud->user()->id,
                 'nombre' => $validado['nombre'],
                 'descripcion' => $validado['descripcion'] ?? null,
                 'tipo_moto' => $validado['tipo_moto'] ?? null,
@@ -96,7 +96,7 @@ class RutaController extends Controller
     {
         try {
             // Verificar autorización
-            if ($ruta->usuario_id !== $solicitud->user()->id) {
+            if ($ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado: Esta ruta no te pertenece',
@@ -128,7 +128,7 @@ class RutaController extends Controller
     {
         try {
             // Verificar autorización
-            if ($ruta->usuario_id !== $solicitud->user()->id) {
+            if ($ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado: Esta ruta no te pertenece',

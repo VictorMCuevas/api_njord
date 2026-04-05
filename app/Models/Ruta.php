@@ -24,7 +24,7 @@ class Ruta extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'usuario_id',
+        'user_id',
         'nombre',
         'descripcion',
         'ruta_gpx',
