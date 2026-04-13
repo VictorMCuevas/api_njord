@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -10,8 +10,9 @@ use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens;
+    use HasFactory;
+    use Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -47,10 +48,9 @@ class User extends Authenticatable
         ];
     }
 
-
     // Relación con rutas (1:n), un usuario tiene muchas rutas
     public function rutas(): HasMany
     {
-        return $this->hasMany(Ruta::class, 'id_user');
+        return $this->hasMany(Ruta::class, 'usuario_id');
     }
 }
