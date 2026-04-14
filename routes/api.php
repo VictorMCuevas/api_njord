@@ -149,15 +149,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('valoraciones')->group(function () {
         // Obtener una valoración específica
-        Route::get('{valoracion}', [ValoracionController::class, 'mostrar'])
+        Route::get('{valoracion}', [ValoracionController::class, 'show'])
             ->name('valoraciones.show');
 
         // Actualizar una valoración
-        Route::put('{valoracion}', [ValoracionController::class, 'actualizar'])
+        Route::put('{valoracion}', [ValoracionController::class, 'update'])
             ->name('valoraciones.update');
 
         // Eliminar una valoración
-        Route::delete('{valoracion}', [ValoracionController::class, 'eliminar'])
+        Route::delete('{valoracion}', [ValoracionController::class, 'destroy'])
             ->name('valoraciones.destroy');
     });
 
@@ -167,15 +167,15 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::prefix('condiciones-atmosfericas')->group(function () {
         // Obtener una condición específica
-        Route::get('{condicionAtmosferica}', [CondicionAtmosfericaController::class, 'mostrar'])
+        Route::get('{condicionAtmosferica}', [CondicionAtmosfericaController::class, 'show'])
             ->name('condiciones-atmosfericas.show');
 
         // Actualizar una condición
-        Route::put('{condicionAtmosferica}', [CondicionAtmosfericaController::class, 'actualizar'])
+        Route::put('{condicionAtmosferica}', [CondicionAtmosfericaController::class, 'update'])
             ->name('condiciones-atmosfericas.update');
 
         // Eliminar una condición
-        Route::delete('{condicionAtmosferica}', [CondicionAtmosfericaController::class, 'eliminar'])
+        Route::delete('{condicionAtmosferica}', [CondicionAtmosfericaController::class, 'destroy'])
             ->name('condiciones-atmosfericas.destroy');
     });
 

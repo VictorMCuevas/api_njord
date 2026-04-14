@@ -111,7 +111,7 @@ class GpxController extends Controller
     {
         try {
             // Verificar autorización
-            if ($ruta->usuario_id !== $solicitud->user()->id) {
+            if ($ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado',
@@ -149,7 +149,7 @@ class GpxController extends Controller
     {
         try {
             // Verificar autorización
-            if ($ruta->usuario_id !== $solicitud->user()->id) {
+            if ($ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado',
@@ -194,7 +194,7 @@ class GpxController extends Controller
     {
         try {
             // Verificar autorización
-            if ($ruta->usuario_id !== $solicitud->user()->id) {
+            if ($ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado',
