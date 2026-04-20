@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RutaController;
@@ -117,6 +116,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // Eliminar archivo GPX
         Route::delete('{ruta}/gpx', [GpxController::class, 'eliminarGpx'])
             ->name('rutas.eliminar-gpx');
+
+        Route::get('/rutas/{ruta}/gpx', [GpxController::class, 'verGpx'])
+            ->name('rutas.ver-ruta-gpx');
 
         // ====================================================================
         // VALORACIONES - Rutas anidadas bajo /rutas/{id}/valoraciones

@@ -103,8 +103,8 @@ class CondicionAtmosferica extends Model
         // Lluvia: +2 por cada mm de precipitación
         $indice += min(($this->precipitacion ?? 0) * 2, 8);
 
-        // Viento: +1 por cada 10 km/h
-        $indice += min((($this->velocidad_viento ?? 0) / 10), 5);
+        // Viento: +1 por cada 5 km/h
+        $indice += min((($this->velocidad_viento ?? 0) / 5), 5);
 
         // Temperatura muy baja: +2
         if (($this->temperatura ?? 0) < 0) {

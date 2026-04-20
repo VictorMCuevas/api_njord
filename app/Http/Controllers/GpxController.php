@@ -58,7 +58,7 @@ class GpxController extends Controller
             // Intentar parsear el GPX para extraer información
             try {
                 $infoGpx = $this->parsearArchivoGpx($ruta_almacenamiento);
-                
+
                 // Actualizar distancia si está disponible
                 if (isset($infoGpx['distancia_total_km']) && !$ruta->distancia_km) {
                     $ruta->update(['distancia_km' => $infoGpx['distancia_total_km']]);
@@ -87,7 +87,6 @@ class GpxController extends Controller
                     'tamaño_kb' => round($archivo->getSize() / 1024, 2),
                 ],
             ], 201);
-
         } catch (ValidationException $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -131,7 +130,6 @@ class GpxController extends Controller
                 $ruta->ruta_gpx,
                 $ruta->nombre_archivo_gpx_original ?? $ruta->nombre . '.gpx'
             );
-
         } catch (\Exception $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -176,7 +174,6 @@ class GpxController extends Controller
                     'tamaño_kb' => round(Storage::size($ruta->ruta_gpx) / 1024, 2),
                 ], $infoGpx),
             ], 200);
-
         } catch (\Exception $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -216,7 +213,6 @@ class GpxController extends Controller
                 'estado' => 'exito',
                 'mensaje' => 'Archivo GPX eliminado exitosamente',
             ], 200);
-
         } catch (\Exception $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -258,7 +254,7 @@ class GpxController extends Controller
         try {
             // Crear instancia de phpGPX
             $phpGPX = new phpGPX();
-            
+
             // Parsear el contenido XML
             $gpxFile = $phpGPX->parse($contenidoGpx);
 
@@ -305,7 +301,6 @@ class GpxController extends Controller
             }
 
             return $datos;
-
         } catch (\Exception $excepcion) {
             throw new \Exception('Error al parsear GPX con sibyx/phpgpx: ' . $excepcion->getMessage());
         }
@@ -341,7 +336,7 @@ class GpxController extends Controller
                 if (isset($primerPunto->ele)) {
                     $datos['elevacion_inicio'] = (float)$primerPunto->ele;
                 }
-            } 
+            }
             // Si no hay waypoints, extraer del primer track
             elseif (count($tracks) > 0 && isset($tracks[0]->trkseg)) {
                 $trkseg = $tracks[0]->trkseg;
@@ -374,7 +369,6 @@ class GpxController extends Controller
             $datos['distancia_total_km'] = round($distancia, 2);
 
             return $datos;
-
         } catch (\Exception $excepcion) {
             throw new \Exception('Error al parsear GPX con SimpleXML: ' . $excepcion->getMessage());
         }
@@ -417,5 +411,46 @@ class GpxController extends Controller
         $nombreArchivo = preg_replace('/[^a-zA-Z0-9._-]/', '_', $nombreArchivo);
         // Limitar longitud
         return substr($nombreArchivo, 0, 255);
+    }
+
+    /**
+     * Obtener contenido GPX (XML) de una ruta
+     * GET /api/rutas/{id}/gpx (o /gpx-contenido)
+     * 
+     * Retorna el archivo GPX como XML inline (visualización en navegador)
+     */
+    public function verGpx(Request $solicitud, Ruta $ruta)
+    {
+        try {
+            // Verificar autorización
+            if ($ruta->user_id !== $solicitud->user()->id) {
+                return response()->json([
+                    'estado' => 'error',
+                    'mensaje' => 'No autorizado',
+                ], 403);
+            }
+
+            // Verificar que existe el archivo
+            if (!$ruta->archivoGpxExiste()) {
+                return response()->json([
+                    'estado' => 'error',
+                    'mensaje' => 'Archivo GPX no encontrado',
+                ], 404);
+            }
+
+            // Obtener contenido
+            $contenido = Storage::get($ruta->ruta_gpx);
+
+            // Retornar como XML (inline para visualización)
+            return response($contenido, 200)
+                ->header('Content-Type', 'application/gpx+xml; charset=UTF-8')
+                ->header('Content-Disposition', 'inline; filename="' . ($ruta->nombre_archivo_gpx_original ?? $ruta->nombre . '.gpx') . '"');
+        } catch (\Exception $excepcion) {
+            return response()->json([
+                'estado' => 'error',
+                'mensaje' => 'No se pudo obtener el contenido del GPX',
+                'error' => $excepcion->getMessage(),
+            ], 500);
+        }
     }
 }
