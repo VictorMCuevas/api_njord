@@ -419,10 +419,11 @@ class GpxController extends Controller
      * 
      * Retorna el archivo GPX como XML inline (visualización en navegador)
      */
-    public function verGpx(Request $solicitud, Ruta $ruta)
-    {
+
+
+    public function verGpx(Request $solicitud, Ruta $ruta){
         try {
-            // Verificar autorización
+            // Autorización
             if ($ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
@@ -430,7 +431,7 @@ class GpxController extends Controller
                 ], 403);
             }
 
-            // Verificar que existe el archivo
+            // Verificar existencia
             if (!$ruta->archivoGpxExiste()) {
                 return response()->json([
                     'estado' => 'error',
@@ -438,18 +439,28 @@ class GpxController extends Controller
                 ], 404);
             }
 
-            // Obtener contenido
-            $contenido = Storage::get($ruta->ruta_gpx);
+            // Nombre del archivo
+            $nombreArchivo = $ruta->nombre_archivo_gpx_original
+                ?? $ruta->nombre . '.gpx';
 
-            // Retornar como XML (inline para visualización)
-            return response($contenido, 200)
-                ->header('Content-Type', 'application/gpx+xml; charset=UTF-8')
-                ->header('Content-Disposition', 'inline; filename="' . ($ruta->nombre_archivo_gpx_original ?? $ruta->nombre . '.gpx') . '"');
-        } catch (\Exception $excepcion) {
+            // Respuesta optimizada (stream / descarga controlada)
+            return Storage::download(
+                $ruta->ruta_gpx,
+                $nombreArchivo,
+                [
+                    'Content-Type' => 'application/gpx+xml; charset=UTF-8',
+                    'Content-Disposition' => 'inline; filename="' . $nombreArchivo . '"',
+                ]
+            );
+        } catch (\Throwable $excepcion) {
+            Log::error('Error al servir GPX', [
+                'ruta_id' => $ruta->id,
+                'error' => $excepcion->getMessage(),
+            ]);
+
             return response()->json([
                 'estado' => 'error',
                 'mensaje' => 'No se pudo obtener el contenido del GPX',
-                'error' => $excepcion->getMessage(),
             ], 500);
         }
     }
