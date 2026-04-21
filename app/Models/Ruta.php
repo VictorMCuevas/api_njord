@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Valoracion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -35,6 +34,7 @@ class Ruta extends Model
         'longitud',
         'distancia_km',
         'nivel_dificultad',
+        'valoracion_personal',
     ];
 
     /**
@@ -46,6 +46,7 @@ class Ruta extends Model
         'latitud' => 'float',
         'longitud' => 'float',
         'distancia_km' => 'float',
+        'valoracion_personal' => 'integer',
     ];
 
     /**
@@ -57,29 +58,11 @@ class Ruta extends Model
     }
 
     /**
-     * Relación: Una ruta tiene muchas valoraciones.
-     */
-    public function valoraciones(): HasMany
-    {
-        return $this->hasMany(Valoracion::class, 'ruta_id');
-    }
-
-    /**
      * Relación: Una ruta tiene muchas condiciones atmosféricas.
      */
     public function condicionesAtmosfericas(): HasMany
     {
         return $this->hasMany(CondicionAtmosferica::class, 'ruta_id');
-    }
-
-    /**
-     * Obtener el promedio de valoración de la ruta.
-     *
-     * @return float
-     */
-    public function obtenerPromedioValoracion(): float
-    {
-        return $this->valoraciones()->avg('puntuacion') ?? 0;
     }
 
     /**

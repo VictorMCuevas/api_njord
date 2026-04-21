@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\RutaController;
-use App\Http\Controllers\ValoracionController;
 use App\Http\Controllers\CondicionAtmosfericaController;
 use App\Http\Controllers\GpxController;
 // use App\Http\Controllers\ControladorRecomendacion;
@@ -117,20 +116,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('{ruta}/gpx', [GpxController::class, 'eliminarGpx'])
             ->name('rutas.eliminar-gpx');
 
-        Route::get('/rutas/{ruta}/gpx', [GpxController::class, 'verGpx'])
+        Route::get('{ruta}/gpx', [GpxController::class, 'verGpx'])
             ->name('rutas.ver-ruta-gpx');
-
-        // ====================================================================
-        // VALORACIONES - Rutas anidadas bajo /rutas/{id}/valoraciones
-        // ====================================================================
-
-        // Obtener valoraciones de una ruta específica
-        Route::get('{ruta}/valoraciones', [ValoracionController::class, 'indiceporRuta'])
-            ->name('rutas.valoraciones.index');
-
-        // Crear valoración para una ruta
-        Route::post('{ruta}/valoraciones', [ValoracionController::class, 'store'])
-            ->name('rutas.valoraciones.store');
 
         // ====================================================================
         // CLIMA - Rutas anidadas bajo /rutas/{id}/clima
@@ -143,24 +130,6 @@ Route::middleware('auth:sanctum')->group(function () {
         // Registrar condición atmosférica para una ruta
         Route::post('{ruta}/clima', [CondicionAtmosfericaController::class, 'store'])
             ->name('rutas.clima.store');
-    });
-
-    // ========================================================================
-    // VALORACIONES - Rutas independientes
-    // ========================================================================
-
-    Route::prefix('valoraciones')->group(function () {
-        // Obtener una valoración específica
-        Route::get('{valoracion}', [ValoracionController::class, 'show'])
-            ->name('valoraciones.show');
-
-        // Actualizar una valoración
-        Route::put('{valoracion}', [ValoracionController::class, 'update'])
-            ->name('valoraciones.update');
-
-        // Eliminar una valoración
-        Route::delete('{valoracion}', [ValoracionController::class, 'destroy'])
-            ->name('valoraciones.destroy');
     });
 
     // ========================================================================

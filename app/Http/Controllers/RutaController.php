@@ -16,7 +16,7 @@ class RutaController extends Controller
     {
         try {
             $rutas = Ruta::where('user_id', $solicitud->user()->id)
-                ->with(['valoraciones', 'condicionesAtmosfericas'])
+                ->with(['condicionesAtmosfericas'])
                 ->get();
 
             return response()->json([
@@ -52,6 +52,7 @@ class RutaController extends Controller
                 'longitud' => 'nullable|numeric|between:-180,180',
                 'distancia_km' => 'nullable|numeric|min:0',
                 'nivel_dificultad' => 'nullable|integer|between:1,5',
+                'valoracion_personal' => 'nullable|integer|between:1,5',
             ]);
 
             // Crear ruta asociada al usuario autenticado
@@ -65,6 +66,7 @@ class RutaController extends Controller
                 'longitud' => $validado['longitud'] ?? null,
                 'distancia_km' => $validado['distancia_km'] ?? null,
                 'nivel_dificultad' => $validado['nivel_dificultad'] ?? 1,
+                'valoracion_personal' => $validado['valoracion_personal'] ?? null,
             ]);
 
             return response()->json([
@@ -104,7 +106,7 @@ class RutaController extends Controller
             }
 
             // Cargar relaciones
-            $ruta->load(['valoraciones', 'condicionesAtmosfericas']);
+            $ruta->load(['condicionesAtmosfericas']);
 
             return response()->json([
                 'estado' => 'exito',
@@ -145,6 +147,7 @@ class RutaController extends Controller
                 'longitud' => 'sometimes|nullable|numeric|between:-180,180',
                 'distancia_km' => 'sometimes|nullable|numeric|min:0',
                 'nivel_dificultad' => 'sometimes|nullable|integer|between:1,5',
+                'valoracion_personal' => 'sometimes|nullable|integer|between:1,5',
             ]);
 
             // Actualizar ruta
