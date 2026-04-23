@@ -96,6 +96,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('{ruta}', [RutaController::class, 'destroy'])
             ->name('rutas.destroy');
 
+        // Route::post('{id}/compartir-telegram', [RutaController::class, 'compartirTelegram']);
+
         // ====================================================================
         // ARCHIVOS GPX - Subir, descargar, obtener info, eliminar
         // ====================================================================

@@ -18,7 +18,7 @@ class CondicionAtmosfericaController extends Controller
     {
         try {
             // Verificar autorización
-            if ($ruta->usuario_id !== $solicitud->user()->id) {
+            if ($ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado: Esta ruta no te pertenece',
@@ -51,7 +51,7 @@ class CondicionAtmosfericaController extends Controller
     {
         try {
             // Verificar autorización
-            if ($ruta->usuario_id !== $solicitud->user()->id) {
+            if ($ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado: Esta ruta no te pertenece',
@@ -107,7 +107,7 @@ class CondicionAtmosfericaController extends Controller
     {
         try {
             // Verificar autorización
-            if ($condicion->ruta->usuario_id !== $solicitud->user()->id) {
+            if ($condicion->ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado',
@@ -136,7 +136,7 @@ class CondicionAtmosfericaController extends Controller
     {
         try {
             // Verificar autorización
-            if ($condicion->ruta->usuario_id !== $solicitud->user()->id) {
+            if ($condicion->ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado',
@@ -185,7 +185,7 @@ class CondicionAtmosfericaController extends Controller
     {
         try {
             // Verificar autorización
-            if ($condicion->ruta->usuario_id !== $solicitud->user()->id) {
+            if ($condicion->ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado',

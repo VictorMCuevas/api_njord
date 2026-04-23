@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Ruta;
 use Illuminate\Http\Request;
+// use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
 class RutaController extends Controller
@@ -25,7 +26,6 @@ class RutaController extends Controller
                 'datos' => $rutas,
                 'cantidad' => count($rutas),
             ], 200);
-
         } catch (\Exception $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -74,7 +74,6 @@ class RutaController extends Controller
                 'mensaje' => 'Ruta creada exitosamente. Sube el archivo GPX usando POST /api/rutas/{id}/subir-gpx',
                 'datos' => $ruta,
             ], 201);
-
         } catch (ValidationException $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -112,7 +111,6 @@ class RutaController extends Controller
                 'estado' => 'exito',
                 'datos' => $ruta,
             ], 200);
-
         } catch (\Exception $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -158,7 +156,6 @@ class RutaController extends Controller
                 'mensaje' => 'Ruta actualizada exitosamente',
                 'datos' => $ruta,
             ], 200);
-
         } catch (ValidationException $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -196,7 +193,6 @@ class RutaController extends Controller
                 'estado' => 'exito',
                 'mensaje' => 'Ruta eliminada exitosamente',
             ], 200);
-
         } catch (\Exception $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -205,4 +201,44 @@ class RutaController extends Controller
             ], 500);
         }
     }
+
+    // public function compartirTelegram(Request $request, $id)
+    // {
+    //     $request->validate(['username' => 'required|string']);
+
+    //     $ruta = Ruta::findOrFail($id);
+
+    //     if ($ruta->user_id !== $request->user()->id) {
+    //         return response()->json(['mensaje' => 'No autorizado: Esta ruta no te pertenece.'], 403);
+    //     }
+
+    //     $username = ltrim($request->username, '@');
+
+    //     // Ruta del archivo GPX en storage (disco local: storage/app/)
+    //     $rutaArchivo = storage_path('app/' . $ruta->ruta_gpx);
+
+    //     if (!$ruta->ruta_gpx || !file_exists($rutaArchivo)) {
+    //         return response()->json(['mensaje' => 'Archivo GPX no encontrado.'], 404);
+    //     }
+
+    //     $token = env('TELEGRAM_BOT_TOKEN');
+
+    //     $response = Http::attach(
+    //         'document',
+    //         file_get_contents($rutaArchivo),
+    //         $ruta->nombre . '.gpx'
+    //     )->post("https://api.telegram.org/bot{$token}/sendDocument", [
+    //         'chat_id' => '@' . $username,
+    //         'caption' => "🏍️ *{$ruta->nombre}*\n📍 {$ruta->distancia_km} km · {$ruta->estilo_conduccion}",
+    //         'parse_mode' => 'Markdown'
+    //     ]);
+
+    //     if (!$response->successful() || !$response->json('ok')) {
+    //         return response()->json([
+    //             'mensaje' => 'No se pudo enviar. Asegúrate de que el usuario ha iniciado el bot.'
+    //         ], 422);
+    //     }
+
+    //     return response()->json(['mensaje' => 'GPX enviado correctamente por Telegram.']);
+    // }
 }
