@@ -125,9 +125,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('{ruta}/clima', [CondicionAtmosfericaController::class, 'indicePorRuta'])
             ->name('rutas.clima.index');
 
-        // Registrar condición atmosférica para una ruta
-        Route::post('{ruta}/clima', [CondicionAtmosfericaController::class, 'store'])
-            ->name('rutas.clima.store');
     });
 
     // ========================================================================
@@ -135,29 +132,22 @@ Route::middleware('auth:sanctum')->group(function () {
     // ========================================================================
 
     Route::prefix('condiciones-atmosfericas')->group(function () {
-        // Obtener una condición específica
         Route::get('{condicionAtmosferica}', [CondicionAtmosfericaController::class, 'show'])
             ->name('condiciones-atmosfericas.show');
-
-        // Actualizar una condición
-        Route::put('{condicionAtmosferica}', [CondicionAtmosfericaController::class, 'update'])
-            ->name('condiciones-atmosfericas.update');
-
-        // Eliminar una condición
-        Route::delete('{condicionAtmosferica}', [CondicionAtmosfericaController::class, 'destroy'])
-            ->name('condiciones-atmosfericas.destroy');
     });
 
     // ========================================================================
-    // CLIMA - Predicción y Pronóstico
+    // CLIMA - Predicción e histórico
     // ========================================================================
 
     Route::prefix('clima')->group(function () {
-        // Obtener predicción del clima para una ubicación y fecha
-        // Parámetros: latitud, longitud, fecha
-        // Ejemplo: GET /api/clima/prediccion?latitud=40.4168&longitud=-3.7038&fecha=2024-04-15
+        // Predicción futura: GET /api/clima/prediccion?latitud=X&longitud=Y&fecha=YYYY-MM-DD&hora=HH:MM
         Route::get('prediccion', [CondicionAtmosfericaController::class, 'obtenerPrediccion'])
             ->name('clima.prediccion');
+
+        // Histórico puntual sin guardar: POST /api/clima/historico
+        Route::post('historico', [CondicionAtmosfericaController::class, 'consultarHistorico'])
+            ->name('clima.historico');
     });
 
     // // ========================================================================

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\CondicionAtmosferica;
 use App\Models\Ruta;
 use Illuminate\Http\Request;
-// use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class RutaController extends Controller
@@ -44,16 +46,25 @@ class RutaController extends Controller
         try {
             // Validar datos de entrada
             $validado = $solicitud->validate([
-                'nombre' => 'required|string|max:255',
-                'fecha' => 'nullable|date',
-                'descripcion' => 'nullable|string',
-                'tipo_moto' => 'nullable|string|max:100',
-                'estilo_conduccion' => 'nullable|string|max:100',
-                'latitud' => 'nullable|numeric|between:-90,90',
-                'longitud' => 'nullable|numeric|between:-180,180',
-                'distancia_km' => 'nullable|numeric|min:0',
-                'nivel_dificultad' => 'nullable|integer|between:1,5',
+                'nombre'              => 'required|string|max:255',
+                'fecha'               => 'nullable|date',
+                'descripcion'         => 'nullable|string',
+                'tipo_moto'           => 'nullable|string|max:100',
+                'estilo_conduccion'   => 'nullable|string|max:100',
+                'latitud'             => 'nullable|numeric|between:-90,90',
+                'longitud'            => 'nullable|numeric|between:-180,180',
+                'distancia_km'        => 'nullable|numeric|min:0',
+                'nivel_dificultad'    => 'nullable|integer|between:1,5',
                 'valoracion_personal' => 'nullable|integer|between:1,5',
+                'inicio.latitud'      => 'nullable|numeric|between:-90,90',
+                'inicio.longitud'     => 'nullable|numeric|between:-180,180',
+                'inicio.hora'         => 'nullable|date_format:H:i',
+                'medio.latitud'       => 'nullable|numeric|between:-90,90',
+                'medio.longitud'      => 'nullable|numeric|between:-180,180',
+                'medio.hora'          => 'nullable|date_format:H:i',
+                'fin.latitud'         => 'nullable|numeric|between:-90,90',
+                'fin.longitud'        => 'nullable|numeric|between:-180,180',
+                'fin.hora'            => 'nullable|date_format:H:i',
             ]);
 
             // Crear ruta asociada al usuario autenticado
@@ -70,6 +81,14 @@ class RutaController extends Controller
                 'nivel_dificultad' => $validado['nivel_dificultad'] ?? 1,
                 'valoracion_personal' => $validado['valoracion_personal'] ?? null,
             ]);
+
+            if ($ruta->fecha && $ruta->fecha->lt(now())) {
+                try {
+                    $this->guardarClimaHistorico($ruta, $solicitud);
+                } catch (\Exception $excepcion) {
+                    Log::warning('Error al guardar clima histórico para ruta ' . $ruta->id . ': ' . $excepcion->getMessage());
+                }
+            }
 
             return response()->json([
                 'estado' => 'exito',
@@ -203,6 +222,67 @@ class RutaController extends Controller
                 'error' => $excepcion->getMessage(),
             ], 500);
         }
+    }
+
+    private function guardarClimaHistorico(Ruta $ruta, Request $solicitud): void
+    {
+        if ($ruta->condicionesAtmosfericas()->exists()) {
+            return;
+        }
+
+        $fecha = $ruta->fecha->format('Y-m-d');
+        $puntos = [
+            'inicio' => $solicitud->input('inicio'),
+            'medio'  => $solicitud->input('medio'),
+            'fin'    => $solicitud->input('fin'),
+        ];
+
+        foreach ($puntos as $nombrePunto => $coords) {
+            if (!$coords || !isset($coords['latitud'], $coords['longitud'])) {
+                continue;
+            }
+
+            $tieneHora = isset($coords['hora']);
+
+            $respuesta = Http::get('https://archive-api.open-meteo.com/v1/archive', [
+                'latitude'   => $coords['latitud'],
+                'longitude'  => $coords['longitud'],
+                'start_date' => $fecha,
+                'end_date'   => $fecha,
+                'hourly'     => 'temperature_2m,precipitation,windspeed_10m,weathercode',
+                'timezone'   => 'Europe/Madrid',
+            ]);
+
+            if (!$respuesta->successful() || !isset($respuesta->json()['hourly']['time'])) {
+                continue;
+            }
+
+            $hourly = $respuesta->json()['hourly'];
+            $indice = $tieneHora ? (int) explode(':', $coords['hora'])[0] : 12;
+
+            CondicionAtmosferica::create([
+                'ruta_id'          => $ruta->id,
+                'punto_en_ruta'    => $nombrePunto,
+                'fecha'            => $fecha,
+                'temperatura'      => $hourly['temperature_2m'][$indice],
+                'precipitacion'    => $hourly['precipitation'][$indice],
+                'velocidad_viento' => $hourly['windspeed_10m'][$indice],
+                'tipo_clima'       => $this->interpretarCodigoWmo($hourly['weathercode'][$indice] ?? 0),
+            ]);
+        }
+    }
+
+    private function interpretarCodigoWmo(int $codigo): string
+    {
+        return match(true) {
+            $codigo === 0 => 'soleado',
+            $codigo <= 3  => 'nublado',
+            $codigo <= 48 => 'niebla',
+            $codigo <= 67 => 'lluvia',
+            $codigo <= 77 => 'nieve',
+            $codigo <= 82 => 'lluvia',
+            default       => 'tormenta',
+        };
     }
 
     // public function compartirTelegram(Request $request, $id)

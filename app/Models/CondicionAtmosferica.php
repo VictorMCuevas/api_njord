@@ -22,6 +22,7 @@ class CondicionAtmosferica extends Model
      */
     protected $fillable = [
         'ruta_id',
+        'punto_en_ruta',
         'fecha',
         'temperatura',
         'humedad',
