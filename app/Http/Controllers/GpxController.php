@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
-use phpGPX\phpGPX;
 
 class GpxController extends Controller
 {
@@ -54,22 +53,6 @@ class GpxController extends Controller
                 'ruta_gpx' => $ruta_almacenamiento,
                 'nombre_archivo_gpx_original' => $archivo->getClientOriginalName(),
             ]);
-
-            // Intentar parsear el GPX para extraer información
-            try {
-                $infoGpx = $this->parsearArchivoGpx($ruta_almacenamiento);
-
-                // Actualizar coordenadas iniciales si están disponibles
-                if (isset($infoGpx['latitud_inicio']) && !$ruta->latitud) {
-                    $ruta->update([
-                        'latitud' => $infoGpx['latitud_inicio'],
-                        'longitud' => $infoGpx['longitud_inicio'],
-                    ]);
-                }
-            } catch (\Exception $excepcion) {
-                // Si falla el parseo, no es crítico
-                Log::warning('Error al parsear GPX para ruta ' . $ruta->id . ': ' . $excepcion->getMessage());
-            }
 
             return response()->json([
                 'estado' => 'exito',
@@ -135,50 +118,6 @@ class GpxController extends Controller
     }
 
     /**
-     * Obtener información del archivo GPX (sin descargarlo)
-     * GET /api/rutas/{id}/info-gpx
-     */
-    public function obtenerInfoGpx(Request $solicitud, Ruta $ruta)
-    {
-        try {
-            // Verificar autorización
-            if ($ruta->user_id !== $solicitud->user()->id) {
-                return response()->json([
-                    'estado' => 'error',
-                    'mensaje' => 'No autorizado',
-                ], 403);
-            }
-
-            // Verificar que existe el archivo
-            if (!$ruta->archivoGpxExiste()) {
-                return response()->json([
-                    'estado' => 'error',
-                    'mensaje' => 'Archivo GPX no encontrado',
-                ], 404);
-            }
-
-            // Parsear el archivo
-            $infoGpx = $this->parsearArchivoGpx($ruta->ruta_gpx);
-
-            return response()->json([
-                'estado' => 'exito',
-                'datos' => array_merge([
-                    'ruta_id' => $ruta->id,
-                    'ruta_gpx' => $ruta->ruta_gpx,
-                    'nombre_archivo_gpx_original' => $ruta->nombre_archivo_gpx_original,
-                    'tamaño_kb' => round(Storage::size($ruta->ruta_gpx) / 1024, 2),
-                ], $infoGpx),
-            ], 200);
-        } catch (\Exception $excepcion) {
-            return response()->json([
-                'estado' => 'error',
-                'mensaje' => 'No se pudo parsear el archivo GPX',
-                'error' => $excepcion->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
      * Eliminar archivo GPX de una ruta
      * DELETE /api/rutas/{id}/gpx
      */
@@ -215,35 +154,6 @@ class GpxController extends Controller
                 'error' => $excepcion->getMessage(),
             ], 500);
         }
-    }
-
-    private function parsearArchivoGpx(string $ruta): array
-    {
-        $gpxFile = (new phpGPX())->parse(Storage::get($ruta));
-
-        $datos = [
-            'cantidad_waypoints' => count($gpxFile->waypoints ?? []),
-            'cantidad_tracks' => count($gpxFile->tracks ?? []),
-            'latitud_inicio' => null,
-            'longitud_inicio' => null,
-            'elevacion_inicio' => null,
-        ];
-
-        if (!empty($gpxFile->tracks)) {
-            $primerPunto = $gpxFile->tracks[0]->segments[0]->points[0] ?? null;
-            if ($primerPunto) {
-                $datos['latitud_inicio'] = $primerPunto->latitude;
-                $datos['longitud_inicio'] = $primerPunto->longitude;
-                $datos['elevacion_inicio'] = $primerPunto->elevation ?? null;
-            }
-        } elseif (!empty($gpxFile->waypoints)) {
-            $primerWaypoint = $gpxFile->waypoints[0];
-            $datos['latitud_inicio'] = $primerWaypoint->latitude;
-            $datos['longitud_inicio'] = $primerWaypoint->longitude;
-            $datos['elevacion_inicio'] = $primerWaypoint->elevation ?? null;
-        }
-
-        return $datos;
     }
 
     /**

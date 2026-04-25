@@ -45,6 +45,7 @@ class RutaController extends Controller
             // Validar datos de entrada
             $validado = $solicitud->validate([
                 'nombre' => 'required|string|max:255',
+                'fecha' => 'nullable|date',
                 'descripcion' => 'nullable|string',
                 'tipo_moto' => 'nullable|string|max:100',
                 'estilo_conduccion' => 'nullable|string|max:100',
@@ -59,6 +60,7 @@ class RutaController extends Controller
             $ruta = Ruta::create([
                 'user_id' => $solicitud->user()->id,
                 'nombre' => $validado['nombre'],
+                'fecha' => $validado['fecha'] ?? null,
                 'descripcion' => $validado['descripcion'] ?? null,
                 'tipo_moto' => $validado['tipo_moto'] ?? null,
                 'estilo_conduccion' => $validado['estilo_conduccion'] ?? null,
@@ -138,6 +140,7 @@ class RutaController extends Controller
             // Validar datos
             $validado = $solicitud->validate([
                 'nombre' => 'sometimes|string|max:255',
+                'fecha' => 'sometimes|nullable|date',
                 'descripcion' => 'sometimes|nullable|string',
                 'tipo_moto' => 'sometimes|nullable|string|max:100',
                 'estilo_conduccion' => 'sometimes|nullable|string|max:100',

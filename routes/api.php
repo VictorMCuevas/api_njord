@@ -110,10 +110,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('{ruta}/descargar-gpx', [GpxController::class, 'descargarGpx'])
             ->name('rutas.descargar-gpx');
 
-        // Obtener información del GPX (sin descargarlo)
-        Route::get('{ruta}/info-gpx', [GpxController::class, 'obtenerInfoGpx'])
-            ->name('rutas.info-gpx');
-
         // Eliminar archivo GPX
         Route::delete('{ruta}/gpx', [GpxController::class, 'eliminarGpx'])
             ->name('rutas.eliminar-gpx');

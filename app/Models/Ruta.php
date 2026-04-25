@@ -25,6 +25,7 @@ class Ruta extends Model
     protected $fillable = [
         'user_id',
         'nombre',
+        'fecha',
         'descripcion',
         'ruta_gpx',
         'nombre_archivo_gpx_original',
@@ -43,6 +44,7 @@ class Ruta extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'fecha' => 'date',
         'latitud' => 'float',
         'longitud' => 'float',
         'distancia_km' => 'float',
