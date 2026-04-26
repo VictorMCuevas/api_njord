@@ -7,7 +7,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
-use phpGPX\phpGPX;
 
 class GpxController extends Controller
 {
@@ -30,9 +29,8 @@ class GpxController extends Controller
                 ], 403);
             }
 
-            // Validar archivo
-            $validado = $solicitud->validate([
-                'archivo_gpx' => 'required|file|mimes:gpx,xml|max:10240', // máximo 10MB
+            $solicitud->validate([
+                'archivo_gpx' => 'required|file|mimes:gpx,xml|max:10240',
             ]);
 
             // Si ya existe un archivo anterior, eliminarlo
@@ -55,27 +53,6 @@ class GpxController extends Controller
                 'nombre_archivo_gpx_original' => $archivo->getClientOriginalName(),
             ]);
 
-            // Intentar parsear el GPX para extraer información
-            try {
-                $infoGpx = $this->parsearArchivoGpx($ruta_almacenamiento);
-                
-                // Actualizar distancia si está disponible
-                if (isset($infoGpx['distancia_total_km']) && !$ruta->distancia_km) {
-                    $ruta->update(['distancia_km' => $infoGpx['distancia_total_km']]);
-                }
-
-                // Actualizar coordenadas iniciales si están disponibles
-                if (isset($infoGpx['latitud_inicio']) && !$ruta->latitud) {
-                    $ruta->update([
-                        'latitud' => $infoGpx['latitud_inicio'],
-                        'longitud' => $infoGpx['longitud_inicio'],
-                    ]);
-                }
-            } catch (\Exception $excepcion) {
-                // Si falla el parseo, no es crítico
-                Log::warning('Error al parsear GPX para ruta ' . $ruta->id . ': ' . $excepcion->getMessage());
-            }
-
             return response()->json([
                 'estado' => 'exito',
                 'mensaje' => 'Archivo GPX subido exitosamente',
@@ -87,7 +64,6 @@ class GpxController extends Controller
                     'tamaño_kb' => round($archivo->getSize() / 1024, 2),
                 ],
             ], 201);
-
         } catch (ValidationException $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -111,7 +87,7 @@ class GpxController extends Controller
     {
         try {
             // Verificar autorización
-            if ($ruta->usuario_id !== $solicitud->user()->id) {
+            if ($ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado',
@@ -131,56 +107,10 @@ class GpxController extends Controller
                 $ruta->ruta_gpx,
                 $ruta->nombre_archivo_gpx_original ?? $ruta->nombre . '.gpx'
             );
-
         } catch (\Exception $excepcion) {
             return response()->json([
                 'estado' => 'error',
                 'mensaje' => 'No se pudo descargar el archivo GPX',
-                'error' => $excepcion->getMessage(),
-            ], 500);
-        }
-    }
-
-    /**
-     * Obtener información del archivo GPX (sin descargarlo)
-     * GET /api/rutas/{id}/info-gpx
-     */
-    public function obtenerInfoGpx(Request $solicitud, Ruta $ruta)
-    {
-        try {
-            // Verificar autorización
-            if ($ruta->usuario_id !== $solicitud->user()->id) {
-                return response()->json([
-                    'estado' => 'error',
-                    'mensaje' => 'No autorizado',
-                ], 403);
-            }
-
-            // Verificar que existe el archivo
-            if (!$ruta->archivoGpxExiste()) {
-                return response()->json([
-                    'estado' => 'error',
-                    'mensaje' => 'Archivo GPX no encontrado',
-                ], 404);
-            }
-
-            // Parsear el archivo
-            $infoGpx = $this->parsearArchivoGpx($ruta->ruta_gpx);
-
-            return response()->json([
-                'estado' => 'exito',
-                'datos' => array_merge([
-                    'ruta_id' => $ruta->id,
-                    'ruta_gpx' => $ruta->ruta_gpx,
-                    'nombre_archivo_gpx_original' => $ruta->nombre_archivo_gpx_original,
-                    'tamaño_kb' => round(Storage::size($ruta->ruta_gpx) / 1024, 2),
-                ], $infoGpx),
-            ], 200);
-
-        } catch (\Exception $excepcion) {
-            return response()->json([
-                'estado' => 'error',
-                'mensaje' => 'No se pudo parsear el archivo GPX',
                 'error' => $excepcion->getMessage(),
             ], 500);
         }
@@ -194,7 +124,7 @@ class GpxController extends Controller
     {
         try {
             // Verificar autorización
-            if ($ruta->usuario_id !== $solicitud->user()->id) {
+            if ($ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado',
@@ -216,7 +146,6 @@ class GpxController extends Controller
                 'estado' => 'exito',
                 'mensaje' => 'Archivo GPX eliminado exitosamente',
             ], 200);
-
         } catch (\Exception $excepcion) {
             return response()->json([
                 'estado' => 'error',
@@ -226,185 +155,7 @@ class GpxController extends Controller
         }
     }
 
-    /**
-     * Parsear archivo GPX y extraer información
-     * 
-     * Usa sibyx/phpgpx (librería oficial verificada)
-     * Con fallback a SimpleXML si falla
-     * 
-     * @return array
-     */
-    private function parsearArchivoGpx(string $ruta): array
-    {
-        $contenidoGpx = Storage::get($ruta);
-
-        // Intentar usar sibyx/phpgpx
-        try {
-            return $this->parsearGpxConSibyx($contenidoGpx);
-        } catch (\Exception $excepcion) {
-            Log::warning('Error con sibyx/phpgpx, usando SimpleXML: ' . $excepcion->getMessage());
-            // Fallback: parseo manual con SimpleXML
-            return $this->parsearGpxConSimpleXml($contenidoGpx);
-        }
-    }
-
-    /**
-     * Parsear GPX usando librería sibyx/phpgpx
-     * 
-     * Instalar: composer require sibyx/phpgpx
-     */
-    private function parsearGpxConSibyx(string $contenidoGpx): array
-    {
-        try {
-            // Crear instancia de phpGPX
-            $phpGPX = new phpGPX();
-            
-            // Parsear el contenido XML
-            $gpxFile = $phpGPX->parse($contenidoGpx);
-
-            $datos = [
-                'cantidad_waypoints' => count($gpxFile->waypoints ?? []),
-                'cantidad_tracks' => count($gpxFile->tracks ?? []),
-                'distancia_total_km' => 0,
-                'latitud_inicio' => null,
-                'longitud_inicio' => null,
-                'elevacion_inicio' => null,
-            ];
-
-            // Calcular distancia total de todos los tracks
-            $distanciaTotal = 0;
-            if (!empty($gpxFile->tracks)) {
-                foreach ($gpxFile->tracks as $track) {
-                    // Recalcular estadísticas del track
-                    $track->recalculateStats();
-                    // Sumar la distancia del track (viene en metros)
-                    $distanciaTotal += $track->length ?? 0;
-                }
-            }
-
-            $datos['distancia_total_km'] = round($distanciaTotal / 1000, 2);
-
-            // Obtener primer punto del primer track o waypoint
-            if (!empty($gpxFile->tracks)) {
-                $primerTrack = $gpxFile->tracks[0];
-                if (!empty($primerTrack->segments)) {
-                    $primerSegmento = $primerTrack->segments[0];
-                    if (!empty($primerSegmento->points)) {
-                        $primerPunto = $primerSegmento->points[0];
-                        $datos['latitud_inicio'] = $primerPunto->latitude;
-                        $datos['longitud_inicio'] = $primerPunto->longitude;
-                        $datos['elevacion_inicio'] = $primerPunto->elevation ?? null;
-                    }
-                }
-            } elseif (!empty($gpxFile->waypoints)) {
-                // Si no hay tracks, usar primer waypoint
-                $primerWaypoint = $gpxFile->waypoints[0];
-                $datos['latitud_inicio'] = $primerWaypoint->latitude;
-                $datos['longitud_inicio'] = $primerWaypoint->longitude;
-                $datos['elevacion_inicio'] = $primerWaypoint->elevation ?? null;
-            }
-
-            return $datos;
-
-        } catch (\Exception $excepcion) {
-            throw new \Exception('Error al parsear GPX con sibyx/phpgpx: ' . $excepcion->getMessage());
-        }
-    }
-
-    /**
-     * Parsear GPX manualmente con SimpleXML (FALLBACK)
-     */
-    private function parsearGpxConSimpleXml(string $contenidoGpx): array
-    {
-        try {
-            $xml = @simplexml_load_string($contenidoGpx);
-
-            if (!$xml) {
-                throw new \Exception('Formato XML de GPX inválido');
-            }
-
-            $datos = [];
-
-            // Contar waypoints
-            $waypoints = $xml->wpt ?? [];
-            $datos['cantidad_waypoints'] = count($waypoints);
-
-            // Contar tracks
-            $tracks = $xml->trk ?? [];
-            $datos['cantidad_tracks'] = count($tracks);
-
-            // Extraer primer punto de waypoints
-            if (count($waypoints) > 0) {
-                $primerPunto = $waypoints[0];
-                $datos['latitud_inicio'] = (float)$primerPunto['lat'];
-                $datos['longitud_inicio'] = (float)$primerPunto['lon'];
-                if (isset($primerPunto->ele)) {
-                    $datos['elevacion_inicio'] = (float)$primerPunto->ele;
-                }
-            } 
-            // Si no hay waypoints, extraer del primer track
-            elseif (count($tracks) > 0 && isset($tracks[0]->trkseg)) {
-                $trkseg = $tracks[0]->trkseg;
-                if (isset($trkseg->trkpt) && count($trkseg->trkpt) > 0) {
-                    $primerPuntoTrack = $trkseg->trkpt[0];
-                    $datos['latitud_inicio'] = (float)$primerPuntoTrack['lat'];
-                    $datos['longitud_inicio'] = (float)$primerPuntoTrack['lon'];
-                    if (isset($primerPuntoTrack->ele)) {
-                        $datos['elevacion_inicio'] = (float)$primerPuntoTrack->ele;
-                    }
-                }
-            }
-
-            // Calcular distancia (usando Haversine)
-            $distancia = 0;
-            foreach ($tracks as $track) {
-                foreach ($track->trkseg as $segmento) {
-                    $puntos = $segmento->trkpt ?? [];
-                    for ($i = 0; $i < count($puntos) - 1; $i++) {
-                        $lat1 = (float)$puntos[$i]['lat'];
-                        $lon1 = (float)$puntos[$i]['lon'];
-                        $lat2 = (float)$puntos[$i + 1]['lat'];
-                        $lon2 = (float)$puntos[$i + 1]['lon'];
-
-                        $distancia += $this->calcularDistancia($lat1, $lon1, $lat2, $lon2);
-                    }
-                }
-            }
-
-            $datos['distancia_total_km'] = round($distancia, 2);
-
-            return $datos;
-
-        } catch (\Exception $excepcion) {
-            throw new \Exception('Error al parsear GPX con SimpleXML: ' . $excepcion->getMessage());
-        }
-    }
-
-    /**
-     * Calcular distancia entre dos puntos usando fórmula Haversine
-     * 
-     * @param float $lat1 Latitud del primer punto
-     * @param float $lon1 Longitud del primer punto
-     * @param float $lat2 Latitud del segundo punto
-     * @param float $lon2 Longitud del segundo punto
-     * @return float Distancia en km
-     */
-    private function calcularDistancia(float $lat1, float $lon1, float $lat2, float $lon2): float
-    {
-        $radioTierra = 6371; // km
-
-        $deltaLat = deg2rad($lat2 - $lat1);
-        $deltaLon = deg2rad($lon2 - $lon1);
-
-        $a = sin($deltaLat / 2) * sin($deltaLat / 2) +
-            cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-            sin($deltaLon / 2) * sin($deltaLon / 2);
-
-        $c = 2 * asin(sqrt($a));
-
-        return $radioTierra * $c;
-    }
-
+    
     /**
      * Sanitizar nombre de archivo
      * 
@@ -417,5 +168,57 @@ class GpxController extends Controller
         $nombreArchivo = preg_replace('/[^a-zA-Z0-9._-]/', '_', $nombreArchivo);
         // Limitar longitud
         return substr($nombreArchivo, 0, 255);
+    }
+
+    /**
+     * Obtener contenido GPX (XML) de una ruta
+     * GET /api/rutas/{id}/gpx (o /gpx-contenido)
+     * 
+     * Retorna el archivo GPX como XML inline (visualización en navegador)
+     */
+
+
+    public function verGpx(Request $solicitud, Ruta $ruta){
+        try {
+            // Autorización
+            if ($ruta->user_id !== $solicitud->user()->id) {
+                return response()->json([
+                    'estado' => 'error',
+                    'mensaje' => 'No autorizado',
+                ], 403);
+            }
+
+            // Verificar existencia
+            if (!$ruta->archivoGpxExiste()) {
+                return response()->json([
+                    'estado' => 'error',
+                    'mensaje' => 'Archivo GPX no encontrado',
+                ], 404);
+            }
+
+            // Nombre del archivo
+            $nombreArchivo = $ruta->nombre_archivo_gpx_original
+                ?? $ruta->nombre . '.gpx';
+
+            // Respuesta optimizada (stream / descarga controlada)
+            return Storage::download(
+                $ruta->ruta_gpx,
+                $nombreArchivo,
+                [
+                    'Content-Type' => 'application/gpx+xml; charset=UTF-8',
+                    'Content-Disposition' => 'inline; filename="' . $nombreArchivo . '"',
+                ]
+            );
+        } catch (\Throwable $excepcion) {
+            Log::error('Error al servir GPX', [
+                'ruta_id' => $ruta->id,
+                'error' => $excepcion->getMessage(),
+            ]);
+
+            return response()->json([
+                'estado' => 'error',
+                'mensaje' => 'No se pudo obtener el contenido del GPX',
+            ], 500);
+        }
     }
 }

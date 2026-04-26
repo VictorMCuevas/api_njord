@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\Valoracion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +25,7 @@ class Ruta extends Model
     protected $fillable = [
         'user_id',
         'nombre',
+        'fecha',
         'descripcion',
         'ruta_gpx',
         'nombre_archivo_gpx_original',
@@ -33,8 +33,13 @@ class Ruta extends Model
         'estilo_conduccion',
         'latitud',
         'longitud',
+        'latitud_medio',
+        'longitud_medio',
+        'latitud_fin',
+        'longitud_fin',
         'distancia_km',
         'nivel_dificultad',
+        'valoracion_personal',
     ];
 
     /**
@@ -43,9 +48,15 @@ class Ruta extends Model
      * @var array<string, string>
      */
     protected $casts = [
+        'fecha' => 'date',
         'latitud' => 'float',
         'longitud' => 'float',
+        'latitud_medio' => 'float',
+        'longitud_medio' => 'float',
+        'latitud_fin' => 'float',
+        'longitud_fin' => 'float',
         'distancia_km' => 'float',
+        'valoracion_personal' => 'integer',
     ];
 
     /**
@@ -57,29 +68,11 @@ class Ruta extends Model
     }
 
     /**
-     * Relación: Una ruta tiene muchas valoraciones.
-     */
-    public function valoraciones(): HasMany
-    {
-        return $this->hasMany(Valoracion::class, 'ruta_id');
-    }
-
-    /**
      * Relación: Una ruta tiene muchas condiciones atmosféricas.
      */
     public function condicionesAtmosfericas(): HasMany
     {
         return $this->hasMany(CondicionAtmosferica::class, 'ruta_id');
-    }
-
-    /**
-     * Obtener el promedio de valoración de la ruta.
-     *
-     * @return float
-     */
-    public function obtenerPromedioValoracion(): float
-    {
-        return $this->valoraciones()->avg('puntuacion') ?? 0;
     }
 
     /**
