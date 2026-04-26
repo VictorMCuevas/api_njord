@@ -4,13 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\CondicionAtmosferica;
 use App\Models\Ruta;
+use App\Traits\InterpreteClima;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class RutaController extends Controller
 {
+    use InterpreteClima;
     /**
      * Obtener todas las rutas del usuario autenticado.
      * GET /api/rutas
@@ -228,6 +229,11 @@ class RutaController extends Controller
         }
     }
 
+    /**
+     * Consulta Open-Meteo Archive para los 3 puntos de la ruta y guarda las condiciones
+     * meteorológicas históricas. Solo se ejecuta si la ruta tiene fecha pasada y
+     * el request incluye coordenadas de inicio, medio o fin. No duplica si ya existen.
+     */
     private function guardarClimaHistorico(Ruta $ruta, Request $solicitud): void
     {
         if ($ruta->condicionesAtmosfericas()->exists()) {
@@ -246,86 +252,25 @@ class RutaController extends Controller
                 continue;
             }
 
-            $tieneHora = isset($coords['hora']);
+            $hora = isset($coords['hora']) ? (int) explode(':', $coords['hora'])[0] : 12;
 
-            $respuesta = Http::get('https://archive-api.open-meteo.com/v1/archive', [
-                'latitude'   => $coords['latitud'],
-                'longitude'  => $coords['longitud'],
-                'start_date' => $fecha,
-                'end_date'   => $fecha,
-                'hourly'     => 'temperature_2m,precipitation,windspeed_10m,weathercode',
-                'timezone'   => 'Europe/Madrid',
-            ]);
+            $datos = $this->consultarArchivoOpenMeteo(
+                $coords['latitud'],
+                $coords['longitud'],
+                $fecha,
+                $hora
+            );
 
-            if (!$respuesta->successful() || !isset($respuesta->json()['hourly']['time'])) {
+            if (!$datos) {
                 continue;
             }
 
-            $hourly = $respuesta->json()['hourly'];
-            $indice = $tieneHora ? (int) explode(':', $coords['hora'])[0] : 12;
-
-            CondicionAtmosferica::create([
-                'ruta_id'          => $ruta->id,
-                'punto_en_ruta'    => $nombrePunto,
-                'fecha'            => $fecha,
-                'temperatura'      => $hourly['temperature_2m'][$indice],
-                'precipitacion'    => $hourly['precipitation'][$indice],
-                'velocidad_viento' => $hourly['windspeed_10m'][$indice],
-                'tipo_clima'       => $this->interpretarCodigoWmo($hourly['weathercode'][$indice] ?? 0),
-            ]);
+            CondicionAtmosferica::create(array_merge([
+                'ruta_id'       => $ruta->id,
+                'punto_en_ruta' => $nombrePunto,
+                'fecha'         => $fecha,
+            ], $datos));
         }
     }
 
-    private function interpretarCodigoWmo(int $codigo): string
-    {
-        return match(true) {
-            $codigo === 0 => 'soleado',
-            $codigo <= 3  => 'nublado',
-            $codigo <= 48 => 'niebla',
-            $codigo <= 67 => 'lluvia',
-            $codigo <= 77 => 'nieve',
-            $codigo <= 82 => 'lluvia',
-            default       => 'tormenta',
-        };
-    }
-
-    // public function compartirTelegram(Request $request, $id)
-    // {
-    //     $request->validate(['username' => 'required|string']);
-
-    //     $ruta = Ruta::findOrFail($id);
-
-    //     if ($ruta->user_id !== $request->user()->id) {
-    //         return response()->json(['mensaje' => 'No autorizado: Esta ruta no te pertenece.'], 403);
-    //     }
-
-    //     $username = ltrim($request->username, '@');
-
-    //     // Ruta del archivo GPX en storage (disco local: storage/app/)
-    //     $rutaArchivo = storage_path('app/' . $ruta->ruta_gpx);
-
-    //     if (!$ruta->ruta_gpx || !file_exists($rutaArchivo)) {
-    //         return response()->json(['mensaje' => 'Archivo GPX no encontrado.'], 404);
-    //     }
-
-    //     $token = env('TELEGRAM_BOT_TOKEN');
-
-    //     $response = Http::attach(
-    //         'document',
-    //         file_get_contents($rutaArchivo),
-    //         $ruta->nombre . '.gpx'
-    //     )->post("https://api.telegram.org/bot{$token}/sendDocument", [
-    //         'chat_id' => '@' . $username,
-    //         'caption' => "🏍️ *{$ruta->nombre}*\n📍 {$ruta->distancia_km} km · {$ruta->estilo_conduccion}",
-    //         'parse_mode' => 'Markdown'
-    //     ]);
-
-    //     if (!$response->successful() || !$response->json('ok')) {
-    //         return response()->json([
-    //             'mensaje' => 'No se pudo enviar. Asegúrate de que el usuario ha iniciado el bot.'
-    //         ], 422);
-    //     }
-
-    //     return response()->json(['mensaje' => 'GPX enviado correctamente por Telegram.']);
-    // }
 }

@@ -4,12 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\CondicionAtmosferica;
 use App\Models\Ruta;
-use Illuminate\Support\Facades\Http;
+use App\Traits\InterpreteClima;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class CondicionAtmosfericaController extends Controller
 {
+    use InterpreteClima;
     /**
      * Obtener todas las condiciones atmosféricas de una ruta.
      * GET /api/rutas/{ruta_id}/clima
@@ -80,24 +81,19 @@ class CondicionAtmosfericaController extends Controller
                 'latitud'  => 'required|numeric|between:-90,90',
                 'longitud' => 'required|numeric|between:-180,180',
                 'fecha'    => 'required|date|before:today',
+                'hora'     => 'nullable|date_format:H:i',
             ]);
 
-            $respuesta = Http::get('https://archive-api.open-meteo.com/v1/archive', [
-                'latitude'   => $validado['latitud'],
-                'longitude'  => $validado['longitud'],
-                'start_date' => $validado['fecha'],
-                'end_date'   => $validado['fecha'],
-                'daily'      => 'temperature_2m_max,precipitation_sum,windspeed_10m_max,weathercode',
-                'timezone'   => 'Europe/Madrid',
-            ]);
+            $hora = isset($validado['hora']) ? (int) explode(':', $validado['hora'])[0] : 12;
 
-            if (!$respuesta->successful()) {
-                throw new \Exception('Error al consultar Open-Meteo');
-            }
+            $datos = $this->consultarArchivoOpenMeteo(
+                $validado['latitud'],
+                $validado['longitud'],
+                $validado['fecha'],
+                $hora
+            );
 
-            $datos = $respuesta->json();
-
-            if (!isset($datos['daily']['time'][0])) {
+            if (!$datos) {
                 return response()->json([
                     'estado'  => 'error',
                     'mensaje' => 'No hay datos disponibles para esa fecha',
@@ -106,13 +102,7 @@ class CondicionAtmosfericaController extends Controller
 
             return response()->json([
                 'estado' => 'exito',
-                'datos'  => [
-                    'fecha'            => $datos['daily']['time'][0],
-                    'temperatura'      => $datos['daily']['temperature_2m_max'][0],
-                    'precipitacion_mm' => $datos['daily']['precipitation_sum'][0],
-                    'velocidad_viento' => $datos['daily']['windspeed_10m_max'][0],
-                    'tipo_clima'       => $this->interpretarCodigoWmo($datos['daily']['weathercode'][0] ?? 0),
-                ],
+                'datos'  => array_merge(['fecha' => $validado['fecha']], $datos),
             ], 200);
 
         } catch (ValidationException $excepcion) {
@@ -143,64 +133,20 @@ class CondicionAtmosfericaController extends Controller
             $validado = $solicitud->validate([
                 'latitud'  => 'required|numeric|between:-90,90',
                 'longitud' => 'required|numeric|between:-180,180',
-                'fecha'    => 'required|date',
+                'fecha'    => 'required|date|after_or_equal:today',
                 'hora'     => 'nullable|date_format:H:i',
             ]);
 
-            if (isset($validado['hora'])) {
-                $respuesta = Http::get('https://api.open-meteo.com/v1/forecast', [
-                    'latitude'   => $validado['latitud'],
-                    'longitude'  => $validado['longitud'],
-                    'start_date' => $validado['fecha'],
-                    'end_date'   => $validado['fecha'],
-                    'hourly'     => 'temperature_2m,precipitation,weathercode,windspeed_10m',
-                    'timezone'   => 'Europe/Madrid',
-                ]);
+            $hora = isset($validado['hora']) ? (int) explode(':', $validado['hora'])[0] : null;
 
-                if (!$respuesta->successful()) {
-                    throw new \Exception('Error al obtener predicción');
-                }
+            $datos = $this->consultarPronosticoOpenMeteo(
+                $validado['latitud'],
+                $validado['longitud'],
+                $validado['fecha'],
+                $hora
+            );
 
-                $datos = $respuesta->json();
-                $indiceHora = (int) explode(':', $validado['hora'])[0];
-
-                if (!isset($datos['hourly']['time'][$indiceHora])) {
-                    return response()->json([
-                        'estado'  => 'error',
-                        'mensaje' => 'No hay datos para esa hora',
-                    ], 404);
-                }
-
-                return response()->json([
-                    'estado' => 'exito',
-                    'datos'  => [
-                        'fecha'            => $validado['fecha'],
-                        'hora'             => $validado['hora'],
-                        'temperatura'      => $datos['hourly']['temperature_2m'][$indiceHora],
-                        'precipitacion_mm' => $datos['hourly']['precipitation'][$indiceHora],
-                        'velocidad_viento' => $datos['hourly']['windspeed_10m'][$indiceHora],
-                        'tipo_clima'       => $this->interpretarCodigoWmo($datos['hourly']['weathercode'][$indiceHora] ?? 0),
-                    ],
-                ], 200);
-            }
-
-            // Sin hora: resumen diario
-            $respuesta = Http::get('https://api.open-meteo.com/v1/forecast', [
-                'latitude'   => $validado['latitud'],
-                'longitude'  => $validado['longitud'],
-                'start_date' => $validado['fecha'],
-                'end_date'   => $validado['fecha'],
-                'daily'      => 'temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode',
-                'timezone'   => 'Europe/Madrid',
-            ]);
-
-            if (!$respuesta->successful()) {
-                throw new \Exception('Error al obtener predicción');
-            }
-
-            $datos = $respuesta->json();
-
-            if (!isset($datos['daily']['time'][0])) {
+            if (!$datos) {
                 return response()->json([
                     'estado'  => 'error',
                     'mensaje' => 'No hay datos disponibles para esa fecha',
@@ -209,14 +155,7 @@ class CondicionAtmosfericaController extends Controller
 
             return response()->json([
                 'estado' => 'exito',
-                'datos'  => [
-                    'fecha'                   => $datos['daily']['time'][0],
-                    'temperatura_maxima'      => $datos['daily']['temperature_2m_max'][0],
-                    'temperatura_minima'      => $datos['daily']['temperature_2m_min'][0],
-                    'precipitacion_mm'        => $datos['daily']['precipitation_sum'][0],
-                    'velocidad_viento_maxima' => $datos['daily']['windspeed_10m_max'][0],
-                    'tipo_clima'              => $this->interpretarCodigoWmo($datos['daily']['weathercode'][0] ?? 0),
-                ],
+                'datos'  => $datos,
             ], 200);
 
         } catch (ValidationException $excepcion) {
@@ -234,16 +173,4 @@ class CondicionAtmosfericaController extends Controller
         }
     }
 
-    private function interpretarCodigoWmo(int $codigo): string
-    {
-        return match(true) {
-            $codigo === 0 => 'soleado',
-            $codigo <= 3  => 'nublado',
-            $codigo <= 48 => 'niebla',
-            $codigo <= 67 => 'lluvia',
-            $codigo <= 77 => 'nieve',
-            $codigo <= 82 => 'lluvia',
-            default       => 'tormenta',
-        };
-    }
 }
