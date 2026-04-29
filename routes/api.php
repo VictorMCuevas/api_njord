@@ -34,8 +34,8 @@ Route::prefix('auth')->group(function () {
         ->name('auth.iniciarSesion');
 });
 
-Route::post('login', [AuthController::class, 'login'])
-    ->name('login');
+// Route::post('login', [AuthController::class, 'login'])
+//     ->name('login');
 
 
 // Health check (para verificar que el servidor está activo)
@@ -150,22 +150,6 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('clima.historico');
     });
 
-    // // ========================================================================
-    // // RECOMENDACIONES - Motor inteligente de recomendación de rutas
-    // // ========================================================================
-
-    // Route::prefix('recomendaciones')->group(function () {
-    //     // Obtener rutas recomendadas basadas en:
-    //     // - Ubicación (latitud, longitud)
-    //     // - Fecha
-    //     // - Clima predicho vs clima histórico
-    //     // - Valoraciones previas (>=4 estrellas)
-    //     //
-    //     // Parámetros: latitud, longitud, fecha
-    //     // Ejemplo: GET /api/recomendaciones?latitud=40.4168&longitud=-3.7038&fecha=2024-04-15
-    //     Route::get('/', [ControladorRecomendacion::class, 'recomendaciones'])
-    //         ->name('recomendaciones.index');
-    // });
 
 });
 
