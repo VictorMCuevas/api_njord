@@ -25,12 +25,12 @@ use App\Http\Controllers\GpxController;
 // ============================================================================
 
 Route::prefix('auth')->group(function () {
-    // Registrar nuevo usuario
-    Route::post('registrar', [AuthController::class, 'register'])
+    // Registrar nuevo usuario (máx. 5 intentos por minuto por IP)
+    Route::middleware('throttle:5,1')->post('registrar', [AuthController::class, 'register'])
         ->name('auth.registrar');
 
-    // Iniciar sesión
-    Route::post('iniciar-sesion', [AuthController::class, 'login'])
+    // Iniciar sesión (máx. 10 intentos por minuto por IP)
+    Route::middleware('throttle:10,1')->post('iniciar-sesion', [AuthController::class, 'login'])
         ->name('auth.iniciarSesion');
 });
 
