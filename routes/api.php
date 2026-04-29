@@ -150,7 +150,6 @@ Route::middleware('auth:sanctum')->group(function () {
             ->name('clima.historico');
     });
 
-
 });
 
 // ============================================================================
