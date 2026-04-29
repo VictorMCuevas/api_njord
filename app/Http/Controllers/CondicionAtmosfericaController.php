@@ -46,10 +46,10 @@ class CondicionAtmosfericaController extends Controller
      * Obtener una condición atmosférica específica.
      * GET /api/condiciones-atmosfericas/{id}
      */
-    public function show(Request $solicitud, CondicionAtmosferica $condicion)
+    public function show(Request $solicitud, CondicionAtmosferica $condicionAtmosferica)
     {
         try {
-            if ($condicion->ruta->user_id !== $solicitud->user()->id) {
+            if ($condicionAtmosferica->ruta->user_id !== $solicitud->user()->id) {
                 return response()->json([
                     'estado' => 'error',
                     'mensaje' => 'No autorizado',
@@ -58,7 +58,7 @@ class CondicionAtmosfericaController extends Controller
 
             return response()->json([
                 'estado' => 'exito',
-                'datos' => $condicion,
+                'datos' => $condicionAtmosferica,
             ], 200);
 
         } catch (\Exception $excepcion) {
