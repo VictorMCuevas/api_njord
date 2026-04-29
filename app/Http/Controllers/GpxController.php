@@ -43,8 +43,7 @@ class GpxController extends Controller
             $nombreArchivo = time() . '_' . $this->sanitizarNombreArchivo($archivo->getClientOriginalName());
             $ruta_almacenamiento = $archivo->storeAs(
                 'gpx/usuario_' . $solicitud->user()->id,
-                $nombreArchivo,
-                'local'
+                $nombreArchivo
             );
 
             // Actualizar ruta con path del archivo
