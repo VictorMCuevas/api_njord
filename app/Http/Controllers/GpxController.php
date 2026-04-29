@@ -30,7 +30,7 @@ class GpxController extends Controller
             }
 
             $solicitud->validate([
-                'archivo_gpx' => 'required|file|mimes:gpx,xml|max:10240',
+                'archivo_gpx' => 'required|file|mimes:gpx,xml|max:8192',
             ]);
 
             // Si ya existe un archivo anterior, eliminarlo

@@ -102,8 +102,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // ARCHIVOS GPX - Subir, descargar, obtener info, eliminar
         // ====================================================================
 
-        // Subir archivo GPX
+        // Subir archivo GPX (máx 5 subidas por día por usuario)
         Route::post('{ruta}/subir-gpx', [GpxController::class, 'subirGpx'])
+            ->middleware('throttle:subida-gpx')
             ->name('rutas.subir-gpx');
 
         // Descargar archivo GPX
