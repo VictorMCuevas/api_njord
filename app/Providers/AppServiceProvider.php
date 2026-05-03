@@ -27,5 +27,10 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('subida-gpx', function (Request $request) {
             return Limit::perDay(5)->by($request->user()?->id);
         });
+
+        // Limita el registro de nuevos usuarios a 3 por día por IP.
+        RateLimiter::for('registro-diario', function (Request $request) {
+            return Limit::perDay(3)->by($request->ip());
+        });
     }
 }
