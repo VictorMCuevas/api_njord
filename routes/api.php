@@ -25,12 +25,13 @@ use App\Http\Controllers\GpxController;
 // ============================================================================
 
 Route::prefix('auth')->group(function () {
-    // Registrar nuevo usuario
-    Route::post('registrar', [AuthController::class, 'register'])
+    // Registrar nuevo usuario (máx. 5 intentos por minuto y 3 por día por IP)
+    Route::middleware(['throttle:5,1', 'throttle:registro-diario'])
+        ->post('registrar', [AuthController::class, 'register'])
         ->name('auth.registrar');
 
-    // Iniciar sesión
-    Route::post('iniciar-sesion', [AuthController::class, 'login'])
+    // Iniciar sesión (máx. 10 intentos por minuto por IP)
+    Route::middleware('throttle:10,1')->post('iniciar-sesion', [AuthController::class, 'login'])
         ->name('auth.iniciarSesion');
 });
 
@@ -102,8 +103,9 @@ Route::middleware('auth:sanctum')->group(function () {
         // ARCHIVOS GPX - Subir, descargar, obtener info, eliminar
         // ====================================================================
 
-        // Subir archivo GPX
+        // Subir archivo GPX (máx 5 subidas por día por usuario)
         Route::post('{ruta}/subir-gpx', [GpxController::class, 'subirGpx'])
+            ->middleware('throttle:subida-gpx')
             ->name('rutas.subir-gpx');
 
         // Descargar archivo GPX
