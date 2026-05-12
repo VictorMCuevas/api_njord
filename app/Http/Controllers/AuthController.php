@@ -94,7 +94,7 @@ class AuthController extends Controller
             Log::error('❌ Error al crear carpeta GPX:', ['error' => $carpetaError->getMessage()]);
         }
 
-        $token = $usuario->createToken('auth_token')->plainTextToken;
+        $token = $usuario->createToken('auth_token', ['*'], now()->addDays(30))->plainTextToken;
 
         return response()->json([
             'estado' => 'exito',
@@ -143,7 +143,7 @@ class AuthController extends Controller
                 ], 401);
             }
 
-            $token = $usuario->createToken('auth_token')->plainTextToken;
+            $token = $usuario->createToken('auth_token', ['*'], now()->addDays(30))->plainTextToken;
 
             return response()->json([
                 'estado' => 'exito',
